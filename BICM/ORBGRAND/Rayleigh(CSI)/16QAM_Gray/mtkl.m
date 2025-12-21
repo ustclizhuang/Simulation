@@ -1,0 +1,253 @@
+clear;
+clc;
+SNR=-10:2:30;
+num_samples1 = 1e3;
+num_samples2 = 1e4;
+data = zeros(length(SNR),3);
+for j = 1:length(SNR)
+    S = SNR(j);
+    a = sqrt(10^(S/10)/10);
+    sigma = sqrt(0.5);
+    theta1=atan(1/3);
+    theta2=atan(3);
+    clear points;
+    points = complex(double(zeros(num_samples1*num_samples2,11)));
+    H = raylrnd(0.71, 1, num_samples1);
+    Phi = -pi + 2*pi*rand(1, num_samples1);
+    index = 1;
+    for k = 1:num_samples1
+        h = H(k);
+        phi = Phi(k);
+        angle_set = [theta1, 1*pi/4, 1*pi/4, theta2,...
+            2*pi/4+theta1, 3*pi/4, 3*pi/4, 2*pi/4+theta2,...
+            4*pi/4+theta1, 5*pi/4, 5*pi/4, 4*pi/4+theta2,...
+            6*pi/4+theta1, 7*pi/4, 7*pi/4, 6*pi/4+theta2] + phi;
+        am_set = [sqrt(10), sqrt(2), 3*sqrt(2), sqrt(10),...
+            sqrt(10), sqrt(2), 3*sqrt(2), sqrt(10),...
+            sqrt(10), sqrt(2), 3*sqrt(2), sqrt(10),...
+            sqrt(10), sqrt(2), 3*sqrt(2), sqrt(10)];
+        group = zeros(num_samples2, 11);  % [h, phi, Z, Z1, Z2, Z3, Z4, Z5, Z6, Z7, Z8]
+        % q(y|h)
+        y = generate_symbols(angle_set, am_set, [1/16, 1/16, 1/16, 1/16, 1/16, 1/16, 1/16, 1/16, 1/16, 1/16, 1/16, 1/16, 1/16, 1/16, 1/16, 1/16], h, a, sigma, num_samples2);
+        % q+(y)
+        y1 = generate_symbols(angle_set([5,6,7,8,9,10,11,12]), am_set([5,6,7,8,9,10,11,12]), [0.125,0.125,0.125,0.125,0.125,0.125,0.125,0.125], h, a, sigma, num_samples2);
+        % q-(y)
+        y2 = generate_symbols(angle_set([1,2,3,4,13,14,15,16]), am_set([1,2,3,4,13,14,15,16]), [0.125,0.125,0.125,0.125,0.125,0.125,0.125,0.125], h, a, sigma, num_samples2);
+        % q+(y)
+        y3 = generate_symbols(angle_set([1,3,7,8,9,11,15,16]), am_set([1,3,7,8,9,11,15,16]), [0.125,0.125,0.125,0.125,0.125,0.125,0.125,0.125], h, a, sigma, num_samples2);
+        % q-(y)
+        y4 = generate_symbols(angle_set([2,4,5,6,10,12,13,14]), am_set([2,4,5,6,10,12,13,14]), [0.125,0.125,0.125,0.125,0.125,0.125,0.125,0.125], h, a, sigma, num_samples2);
+        % q+(y)
+        y5 = generate_symbols(angle_set([1,2,3,4,5,6,7,8]), am_set([1,2,3,4,5,6,7,8]), [0.125,0.125,0.125,0.125,0.125,0.125,0.125,0.125], h, a, sigma, num_samples2);
+        % q-(y)
+        y6 = generate_symbols(angle_set([9,10,11,12,13,14,15,16]), am_set([9,10,11,12,13,14,15,16]), [0.125,0.125,0.125,0.125,0.125,0.125,0.125,0.125], h, a, sigma, num_samples2);
+        % q+(y)
+        y7 = generate_symbols(angle_set([1,2,6,8,9,10,14,16]), am_set([1,2,6,8,9,10,14,16]), [0.125,0.125,0.125,0.125,0.125,0.125,0.125,0.125], h, a, sigma, num_samples2);
+        % q-(y)
+        y8 = generate_symbols(angle_set([3,4,5,7,11,12,13,15]), am_set([3,4,5,7,11,12,13,15]), [0.125,0.125,0.125,0.125,0.125,0.125,0.125,0.125], h, a, sigma, num_samples2);
+        group(:,1) = h;
+        group(:,2) = phi;
+        group(:,3) = y;
+        group(:,4) = y1;
+        group(:,5) = y2;
+        group(:,6) = y3;
+        group(:,7) = y4;
+        group(:,8) = y5;
+        group(:,9) = y6;
+        group(:,10) = y7;
+        group(:,11) = y8;
+        points(index:index+num_samples2-1,:) = group;
+        index = index + num_samples2;
+    end
+    H = points(1:end, 1);
+    Phi = points(1:end, 2);
+    Y = points(1:end, 3);
+    num_samples = length(Y);
+    sum11 = 0;
+    sum12 = 0;
+    sum21 = 0;
+    sum22 = 0;
+    sum31 = 0;
+    sum32 = 0;
+    sum41 = 0;
+    sum42 = 0;
+    Y1 = points(1:end, 4);
+    Y2 = points(1:end, 5);
+    Y3 = points(1:end, 6);
+    Y4 = points(1:end, 7);
+    Y5 = points(1:end, 8);
+    Y6 = points(1:end, 9);
+    Y7 = points(1:end, 10);
+    Y8 = points(1:end, 11);
+    
+    det = 20;
+    idx  = (0:num_samples2:(num_samples1-1)*num_samples2)' + (1:det);
+    Y_idx = Y(idx(:));
+    H_idx = H(idx(:));
+    Phi_idx = Phi(idx(:));
+    Psi1_values = abs(log((exp(-(abs(Y_idx-(sqrt(2)*H_idx*a.*(cos(5*pi/4+Phi_idx)+1i*sin(5*pi/4+Phi_idx))))).^2)...
+        +exp(-(abs(Y_idx-(sqrt(2)*H_idx*a.*(cos(3*pi/4+Phi_idx)+1i*sin(3*pi/4+Phi_idx))))).^2)...
+        +exp(-(abs(Y_idx-(sqrt(10)*H_idx*a.*(cos(4*pi/4+Phi_idx+theta2)+1i*sin(4*pi/4+Phi_idx+theta2))))).^2)...
+        +exp(-(abs(Y_idx-(3*sqrt(2)*H_idx*a.*(cos(5*pi/4+Phi_idx)+1i*sin(5*pi/4+Phi_idx))))).^2)...
+        +exp(-(abs(Y_idx-(sqrt(10)*H_idx*a.*(cos(4*pi/4+Phi_idx+theta1)+1i*sin(4*pi/4+Phi_idx+theta1))))).^2)...
+        +exp(-(abs(Y_idx-(sqrt(10)*H_idx*a.*(cos(2*pi/4+Phi_idx+theta2)+1i*sin(2*pi/4+Phi_idx+theta2))))).^2)...
+        +exp(-(abs(Y_idx-(3*sqrt(2)*H_idx*a.*(cos(3*pi/4+Phi_idx)+1i*sin(3*pi/4+Phi_idx))))).^2)...
+        +exp(-(abs(Y_idx-(sqrt(10)*H_idx*a.*(cos(2*pi/4+Phi_idx+theta1)+1i*sin(2*pi/4+Phi_idx+theta1))))).^2))...
+        ./(exp(-(abs(Y_idx-(sqrt(2)*H_idx*a.*(cos(1*pi/4+Phi_idx)+1i*sin(1*pi/4+Phi_idx))))).^2)...
+        +exp(-(abs(Y_idx-(sqrt(2)*H_idx*a.*(cos(7*pi/4+Phi_idx)+1i*sin(7*pi/4+Phi_idx))))).^2)...
+        +exp(-(abs(Y_idx-(sqrt(10)*H_idx*a.*(cos(Phi_idx+theta2)+1i*sin(Phi_idx+theta2))))).^2)...
+        +exp(-(abs(Y_idx-(3*sqrt(2)*H_idx*a.*(cos(1*pi/4+Phi_idx)+1i*sin(1*pi/4+Phi_idx))))).^2)...
+        +exp(-(abs(Y_idx-(sqrt(10)*H_idx*a.*(cos(Phi_idx+theta1)+1i*sin(Phi_idx+theta1))))).^2)...
+        +exp(-(abs(Y_idx-(sqrt(10)*H_idx*a.*(cos(Phi_idx-theta1)+1i*sin(Phi_idx-theta1))))).^2)...
+        +exp(-(abs(Y_idx-(3*sqrt(2)*H_idx*a.*(cos(7*pi/4+Phi_idx)+1i*sin(7*pi/4+Phi_idx))))).^2)...
+        +exp(-(abs(Y_idx-(sqrt(10)*H_idx*a.*(cos(Phi_idx-theta2)+1i*sin(Phi_idx-theta2))))).^2))));
+    Psi2_values = abs(log((exp(-(abs(Y_idx-(3*sqrt(2)*H_idx*a.*(cos(5*pi/4+Phi_idx)+1i*sin(5*pi/4+Phi_idx))))).^2)...
+        +exp(-(abs(Y_idx-(sqrt(10)*H_idx*a.*(cos(4*pi/4+Phi_idx+theta1)+1i*sin(4*pi/4+Phi_idx+theta1))))).^2)...
+        +exp(-(abs(Y_idx-(sqrt(10)*H_idx*a.*(cos(2*pi/4+Phi_idx+theta2)+1i*sin(2*pi/4+Phi_idx+theta2))))).^2)...
+        +exp(-(abs(Y_idx-(3*sqrt(2)*H_idx*a.*(cos(3*pi/4+Phi_idx)+1i*sin(3*pi/4+Phi_idx))))).^2)...
+        +exp(-(abs(Y_idx-(3*sqrt(2)*H_idx*a.*(cos(1*pi/4+Phi_idx)+1i*sin(1*pi/4+Phi_idx))))).^2)...
+        +exp(-(abs(Y_idx-(sqrt(10)*H_idx*a.*(cos(Phi_idx+theta1)+1i*sin(Phi_idx+theta1))))).^2)...
+        +exp(-(abs(Y_idx-(sqrt(10)*H_idx*a.*(cos(Phi_idx-theta1)+1i*sin(Phi_idx-theta1))))).^2)...
+        +exp(-(abs(Y_idx-(3*sqrt(2)*H_idx*a.*(cos(7*pi/4+Phi_idx)+1i*sin(7*pi/4+Phi_idx))))).^2))...
+        ./(exp(-(abs(Y_idx-(sqrt(2)*H_idx*a.*(cos(5*pi/4+Phi_idx)+1i*sin(5*pi/4+Phi_idx))))).^2)...
+        +exp(-(abs(Y_idx-(sqrt(2)*H_idx*a.*(cos(3*pi/4+Phi_idx)+1i*sin(3*pi/4+Phi_idx))))).^2)...
+        +exp(-(abs(Y_idx-(sqrt(2)*H_idx*a.*(cos(1*pi/4+Phi_idx)+1i*sin(1*pi/4+Phi_idx))))).^2)...
+        +exp(-(abs(Y_idx-(sqrt(2)*H_idx*a.*(cos(7*pi/4+Phi_idx)+1i*sin(7*pi/4+Phi_idx))))).^2)...
+        +exp(-(abs(Y_idx-(sqrt(10)*H_idx*a.*(cos(4*pi/4+Phi_idx+theta2)+1i*sin(4*pi/4+Phi_idx+theta2))))).^2)...
+        +exp(-(abs(Y_idx-(sqrt(10)*H_idx*a.*(cos(2*pi/4+Phi_idx+theta1)+1i*sin(2*pi/4+Phi_idx+theta1))))).^2)...
+        +exp(-(abs(Y_idx-(sqrt(10)*H_idx*a.*(cos(Phi_idx+theta2)+1i*sin(Phi_idx+theta2))))).^2)...
+        +exp(-(abs(Y_idx-(sqrt(10)*H_idx*a.*(cos(Phi_idx-theta2)+1i*sin(Phi_idx-theta2))))).^2))));
+    Psi3_values = abs(log((exp(-(abs(Y_idx-(sqrt(2)*H_idx*a.*(cos(3*pi/4+Phi_idx)+1i*sin(3*pi/4+Phi_idx))))).^2)...
+        +exp(-(abs(Y_idx-(sqrt(2)*H_idx*a.*(cos(1*pi/4+Phi_idx)+1i*sin(1*pi/4+Phi_idx))))).^2)...
+        +exp(-(abs(Y_idx-(sqrt(10)*H_idx*a.*(cos(2*pi/4+Phi_idx+theta2)+1i*sin(2*pi/4+Phi_idx+theta2))))).^2)...
+        +exp(-(abs(Y_idx-(3*sqrt(2)*H_idx*a.*(cos(3*pi/4+Phi_idx)+1i*sin(3*pi/4+Phi_idx))))).^2)...
+        +exp(-(abs(Y_idx-(sqrt(10)*H_idx*a.*(cos(2*pi/4+Phi_idx+theta1)+1i*sin(2*pi/4+Phi_idx+theta1))))).^2)...
+        +exp(-(abs(Y_idx-(sqrt(10)*H_idx*a.*(cos(Phi_idx+theta2)+1i*sin(Phi_idx+theta2))))).^2)...
+        +exp(-(abs(Y_idx-(3*sqrt(2)*H_idx*a.*(cos(1*pi/4+Phi_idx)+1i*sin(1*pi/4+Phi_idx))))).^2)...
+        +exp(-(abs(Y_idx-(sqrt(10)*H_idx*a.*(cos(Phi_idx+theta1)+1i*sin(Phi_idx+theta1))))).^2))...
+        ./(exp(-(abs(Y_idx-(sqrt(2)*H_idx*a.*(cos(5*pi/4+Phi_idx)+1i*sin(5*pi/4+Phi_idx))))).^2)...
+        +exp(-(abs(Y_idx-(sqrt(2)*H_idx*a.*(cos(7*pi/4+Phi_idx)+1i*sin(7*pi/4+Phi_idx))))).^2)...
+        +exp(-(abs(Y_idx-(sqrt(10)*H_idx*a.*(cos(4*pi/4+Phi_idx+theta2)+1i*sin(4*pi/4+Phi_idx+theta2))))).^2)...
+        +exp(-(abs(Y_idx-(3*sqrt(2)*H_idx*a.*(cos(5*pi/4+Phi_idx)+1i*sin(5*pi/4+Phi_idx))))).^2)...
+        +exp(-(abs(Y_idx-(sqrt(10)*H_idx*a.*(cos(4*pi/4+Phi_idx+theta1)+1i*sin(4*pi/4+Phi_idx+theta1))))).^2)...
+        +exp(-(abs(Y_idx-(sqrt(10)*H_idx*a.*(cos(Phi_idx-theta1)+1i*sin(Phi_idx-theta1))))).^2)...
+        +exp(-(abs(Y_idx-(3*sqrt(2)*H_idx*a.*(cos(7*pi/4+Phi_idx)+1i*sin(7*pi/4+Phi_idx))))).^2)...
+        +exp(-(abs(Y_idx-(sqrt(10)*H_idx*a.*(cos(Phi_idx-theta2)+1i*sin(Phi_idx-theta2))))).^2))));
+    Psi4_values = abs(log((exp(-(abs(Y_idx-(sqrt(2)*H_idx*a.*(cos(5*pi/4+Phi_idx)+1i*sin(5*pi/4+Phi_idx))))).^2)...
+        +exp(-(abs(Y_idx-(sqrt(2)*H_idx*a.*(cos(3*pi/4+Phi_idx)+1i*sin(3*pi/4+Phi_idx))))).^2)...
+        +exp(-(abs(Y_idx-(sqrt(2)*H_idx*a.*(cos(1*pi/4+Phi_idx)+1i*sin(1*pi/4+Phi_idx))))).^2)...
+        +exp(-(abs(Y_idx-(sqrt(2)*H_idx*a.*(cos(7*pi/4+Phi_idx)+1i*sin(7*pi/4+Phi_idx))))).^2)...
+        +exp(-(abs(Y_idx-(sqrt(10)*H_idx*a.*(cos(4*pi/4+Phi_idx+theta1)+1i*sin(4*pi/4+Phi_idx+theta1))))).^2)...
+        +exp(-(abs(Y_idx-(sqrt(10)*H_idx*a.*(cos(2*pi/4+Phi_idx+theta2)+1i*sin(2*pi/4+Phi_idx+theta2))))).^2)...
+        +exp(-(abs(Y_idx-(sqrt(10)*H_idx*a.*(cos(Phi_idx+theta1)+1i*sin(Phi_idx+theta1))))).^2)...
+        +exp(-(abs(Y_idx-(sqrt(10)*H_idx*a.*(cos(Phi_idx-theta1)+1i*sin(Phi_idx-theta1))))).^2))...
+        ./(exp(-(abs(Y_idx-(sqrt(10)*H_idx*a.*(cos(4*pi/4+Phi_idx+theta2)+1i*sin(4*pi/4+Phi_idx+theta2))))).^2)...
+        +exp(-(abs(Y_idx-(3*sqrt(2)*H_idx*a.*(cos(5*pi/4+Phi_idx)+1i*sin(5*pi/4+Phi_idx))))).^2)...
+        +exp(-(abs(Y_idx-(3*sqrt(2)*H_idx*a.*(cos(3*pi/4+Phi_idx)+1i*sin(3*pi/4+Phi_idx))))).^2)...
+        +exp(-(abs(Y_idx-(sqrt(10)*H_idx*a.*(cos(2*pi/4+Phi_idx+theta1)+1i*sin(2*pi/4+Phi_idx+theta1))))).^2)...
+        +exp(-(abs(Y_idx-(sqrt(10)*H_idx*a.*(cos(Phi_idx+theta2)+1i*sin(Phi_idx+theta2))))).^2)...
+        +exp(-(abs(Y_idx-(3*sqrt(2)*H_idx*a.*(cos(1*pi/4+Phi_idx)+1i*sin(1*pi/4+Phi_idx))))).^2)...
+        +exp(-(abs(Y_idx-(3*sqrt(2)*H_idx*a.*(cos(7*pi/4+Phi_idx)+1i*sin(7*pi/4+Phi_idx))))).^2)...
+        +exp(-(abs(Y_idx-(sqrt(10)*H_idx*a.*(cos(Phi_idx-theta2)+1i*sin(Phi_idx-theta2))))).^2))));
+    
+    
+    
+    
+    for i =1:num_samples
+        h = H(i);
+        phi = Phi(i);
+        y1 = Y1(i);
+        q_0=1/(8*pi)*(exp(-(abs(y1-(sqrt(2)*h*a.*(cos(5*pi/4+phi)+1i*sin(5*pi/4+phi))))).^2)+exp(-(abs(y1-(sqrt(2)*h*a.*(cos(3*pi/4+phi)+1i*sin(3*pi/4+phi))))).^2)+exp(-(abs(y1-(sqrt(10)*h*a.*(cos(4*pi/4+phi+theta2)+1i*sin(4*pi/4+phi+theta2))))).^2)+exp(-(abs(y1-(3*sqrt(2)*h*a.*(cos(5*pi/4+phi)+1i*sin(5*pi/4+phi))))).^2)+exp(-(abs(y1-(sqrt(10)*h*a.*(cos(4*pi/4+phi+theta1)+1i*sin(4*pi/4+phi+theta1))))).^2)+exp(-(abs(y1-(sqrt(10)*h*a.*(cos(2*pi/4+phi+theta2)+1i*sin(2*pi/4+phi+theta2))))).^2)+exp(-(abs(y1-(3*sqrt(2)*h*a.*(cos(3*pi/4+phi)+1i*sin(3*pi/4+phi))))).^2)+exp(-(abs(y1-(sqrt(10)*h*a.*(cos(2*pi/4+phi+theta1)+1i*sin(2*pi/4+phi+theta1))))).^2));
+        q_1=1/(8*pi)*(exp(-(abs(y1-(sqrt(2)*h*a.*(cos(1*pi/4+phi)+1i*sin(1*pi/4+phi))))).^2)+exp(-(abs(y1-(sqrt(2)*h*a.*(cos(7*pi/4+phi)+1i*sin(7*pi/4+phi))))).^2)+exp(-(abs(y1-(sqrt(10)*h*a.*(cos(phi+theta2)+1i*sin(phi+theta2))))).^2)+exp(-(abs(y1-(3*sqrt(2)*h*a.*(cos(1*pi/4+phi)+1i*sin(1*pi/4+phi))))).^2)+exp(-(abs(y1-(sqrt(10)*h*a.*(cos(phi+theta1)+1i*sin(phi+theta1))))).^2)+exp(-(abs(y1-(sqrt(10)*h*a.*(cos(phi-theta1)+1i*sin(phi-theta1))))).^2)+exp(-(abs(y1-(3*sqrt(2)*h*a.*(cos(7*pi/4+phi)+1i*sin(7*pi/4+phi))))).^2)+exp(-(abs(y1-(sqrt(10)*h*a.*(cos(phi-theta2)+1i*sin(phi-theta2))))).^2));
+        if q_0 < q_1
+            t = abs(log(q_0/q_1));
+            val = 1/4*(sum(Psi1_values <= t)+sum(Psi2_values <= t)+sum(Psi3_values <= t)+sum(Psi4_values <= t)) / length(Psi1_values);
+            sum11 = sum11 + val;
+        end
+        y2 = Y2(i);
+        q_0=1/(8*pi)*(exp(-(abs(y2-(sqrt(2)*h*a.*(cos(5*pi/4+phi)+1i*sin(5*pi/4+phi))))).^2)+exp(-(abs(y2-(sqrt(2)*h*a.*(cos(3*pi/4+phi)+1i*sin(3*pi/4+phi))))).^2)+exp(-(abs(y2-(sqrt(10)*h*a.*(cos(4*pi/4+phi+theta2)+1i*sin(4*pi/4+phi+theta2))))).^2)+exp(-(abs(y2-(3*sqrt(2)*h*a.*(cos(5*pi/4+phi)+1i*sin(5*pi/4+phi))))).^2)+exp(-(abs(y2-(sqrt(10)*h*a.*(cos(4*pi/4+phi+theta1)+1i*sin(4*pi/4+phi+theta1))))).^2)+exp(-(abs(y2-(sqrt(10)*h*a.*(cos(2*pi/4+phi+theta2)+1i*sin(2*pi/4+phi+theta2))))).^2)+exp(-(abs(y2-(3*sqrt(2)*h*a.*(cos(3*pi/4+phi)+1i*sin(3*pi/4+phi))))).^2)+exp(-(abs(y2-(sqrt(10)*h*a.*(cos(2*pi/4+phi+theta1)+1i*sin(2*pi/4+phi+theta1))))).^2));
+        q_1=1/(8*pi)*(exp(-(abs(y2-(sqrt(2)*h*a.*(cos(1*pi/4+phi)+1i*sin(1*pi/4+phi))))).^2)+exp(-(abs(y2-(sqrt(2)*h*a.*(cos(7*pi/4+phi)+1i*sin(7*pi/4+phi))))).^2)+exp(-(abs(y2-(sqrt(10)*h*a.*(cos(phi+theta2)+1i*sin(phi+theta2))))).^2)+exp(-(abs(y2-(3*sqrt(2)*h*a.*(cos(1*pi/4+phi)+1i*sin(1*pi/4+phi))))).^2)+exp(-(abs(y2-(sqrt(10)*h*a.*(cos(phi+theta1)+1i*sin(phi+theta1))))).^2)+exp(-(abs(y2-(sqrt(10)*h*a.*(cos(phi-theta1)+1i*sin(phi-theta1))))).^2)+exp(-(abs(y2-(3*sqrt(2)*h*a.*(cos(7*pi/4+phi)+1i*sin(7*pi/4+phi))))).^2)+exp(-(abs(y2-(sqrt(10)*h*a.*(cos(phi-theta2)+1i*sin(phi-theta2))))).^2));
+        if q_0 > q_1
+            t = abs(log(q_0/q_1));
+            val = 1/4*(sum(Psi1_values <= t)+sum(Psi2_values <= t)+sum(Psi3_values <= t)+sum(Psi4_values <= t)) / length(Psi1_values);
+            sum12 = sum12 + val;
+        end
+        y3 = Y3(i);
+        q_0=1/(8*pi)*(exp(-(abs(y3-(3*sqrt(2)*h*a.*(cos(5*pi/4+phi)+1i*sin(5*pi/4+phi))))).^2)+exp(-(abs(y3-(sqrt(10)*h*a.*(cos(4*pi/4+phi+theta1)+1i*sin(4*pi/4+phi+theta1))))).^2)+exp(-(abs(y3-(sqrt(10)*h*a.*(cos(2*pi/4+phi+theta2)+1i*sin(2*pi/4+phi+theta2))))).^2)+exp(-(abs(y3-(3*sqrt(2)*h*a.*(cos(3*pi/4+phi)+1i*sin(3*pi/4+phi))))).^2)+exp(-(abs(y3-(3*sqrt(2)*h*a.*(cos(1*pi/4+phi)+1i*sin(1*pi/4+phi))))).^2)+exp(-(abs(y3-(sqrt(10)*h*a.*(cos(phi+theta1)+1i*sin(phi+theta1))))).^2)+exp(-(abs(y3-(sqrt(10)*h*a.*(cos(phi-theta1)+1i*sin(phi-theta1))))).^2)+exp(-(abs(y3-(3*sqrt(2)*h*a.*(cos(7*pi/4+phi)+1i*sin(7*pi/4+phi))))).^2));
+        q_1=1/(8*pi)*(exp(-(abs(y3-(sqrt(2)*h*a.*(cos(5*pi/4+phi)+1i*sin(5*pi/4+phi))))).^2)+exp(-(abs(y3-(sqrt(2)*h*a.*(cos(3*pi/4+phi)+1i*sin(3*pi/4+phi))))).^2)+exp(-(abs(y3-(sqrt(2)*h*a.*(cos(1*pi/4+phi)+1i*sin(1*pi/4+phi))))).^2)+exp(-(abs(y3-(sqrt(2)*h*a.*(cos(7*pi/4+phi)+1i*sin(7*pi/4+phi))))).^2)+exp(-(abs(y3-(sqrt(10)*h*a.*(cos(4*pi/4+phi+theta2)+1i*sin(4*pi/4+phi+theta2))))).^2)+exp(-(abs(y3-(sqrt(10)*h*a.*(cos(2*pi/4+phi+theta1)+1i*sin(2*pi/4+phi+theta1))))).^2)+exp(-(abs(y3-(sqrt(10)*h*a.*(cos(phi+theta2)+1i*sin(phi+theta2))))).^2)+exp(-(abs(y3-(sqrt(10)*h*a.*(cos(phi-theta2)+1i*sin(phi-theta2))))).^2));
+        if q_0 < q_1
+            t = abs(log(q_0/q_1));
+            val = 1/4*(sum(Psi1_values <= t)+sum(Psi2_values <= t)+sum(Psi3_values <= t)+sum(Psi4_values <= t)) / length(Psi1_values);
+            sum21 = sum21 + val;
+        end
+        y4 = Y4(i);
+        q_0=1/(8*pi)*(exp(-(abs(y4-(3*sqrt(2)*h*a.*(cos(5*pi/4+phi)+1i*sin(5*pi/4+phi))))).^2)+exp(-(abs(y4-(sqrt(10)*h*a.*(cos(4*pi/4+phi+theta1)+1i*sin(4*pi/4+phi+theta1))))).^2)+exp(-(abs(y4-(sqrt(10)*h*a.*(cos(2*pi/4+phi+theta2)+1i*sin(2*pi/4+phi+theta2))))).^2)+exp(-(abs(y4-(3*sqrt(2)*h*a.*(cos(3*pi/4+phi)+1i*sin(3*pi/4+phi))))).^2)+exp(-(abs(y4-(3*sqrt(2)*h*a.*(cos(1*pi/4+phi)+1i*sin(1*pi/4+phi))))).^2)+exp(-(abs(y4-(sqrt(10)*h*a.*(cos(phi+theta1)+1i*sin(phi+theta1))))).^2)+exp(-(abs(y4-(sqrt(10)*h*a.*(cos(phi-theta1)+1i*sin(phi-theta1))))).^2)+exp(-(abs(y4-(3*sqrt(2)*h*a.*(cos(7*pi/4+phi)+1i*sin(7*pi/4+phi))))).^2));
+        q_1=1/(8*pi)*(exp(-(abs(y4-(sqrt(2)*h*a.*(cos(5*pi/4+phi)+1i*sin(5*pi/4+phi))))).^2)+exp(-(abs(y4-(sqrt(2)*h*a.*(cos(3*pi/4+phi)+1i*sin(3*pi/4+phi))))).^2)+exp(-(abs(y4-(sqrt(2)*h*a.*(cos(1*pi/4+phi)+1i*sin(1*pi/4+phi))))).^2)+exp(-(abs(y4-(sqrt(2)*h*a.*(cos(7*pi/4+phi)+1i*sin(7*pi/4+phi))))).^2)+exp(-(abs(y4-(sqrt(10)*h*a.*(cos(4*pi/4+phi+theta2)+1i*sin(4*pi/4+phi+theta2))))).^2)+exp(-(abs(y4-(sqrt(10)*h*a.*(cos(2*pi/4+phi+theta1)+1i*sin(2*pi/4+phi+theta1))))).^2)+exp(-(abs(y4-(sqrt(10)*h*a.*(cos(phi+theta2)+1i*sin(phi+theta2))))).^2)+exp(-(abs(y4-(sqrt(10)*h*a.*(cos(phi-theta2)+1i*sin(phi-theta2))))).^2));
+        if q_0 > q_1
+            t = abs(log(q_0/q_1));
+            val = 1/4*(sum(Psi1_values <= t)+sum(Psi2_values <= t)+sum(Psi3_values <= t)+sum(Psi4_values <= t)) / length(Psi1_values);
+            sum22 = sum22 + val;
+        end
+        y5 = Y5(i);
+        q_0=1/(8*pi)*(exp(-(abs(y5-(sqrt(2)*h*a.*(cos(3*pi/4+phi)+1i*sin(3*pi/4+phi))))).^2)+exp(-(abs(y5-(sqrt(2)*h*a.*(cos(1*pi/4+phi)+1i*sin(1*pi/4+phi))))).^2)+exp(-(abs(y5-(sqrt(10)*h*a.*(cos(2*pi/4+phi+theta2)+1i*sin(2*pi/4+phi+theta2))))).^2)+exp(-(abs(y5-(3*sqrt(2)*h*a.*(cos(3*pi/4+phi)+1i*sin(3*pi/4+phi))))).^2)+exp(-(abs(y5-(sqrt(10)*h*a.*(cos(2*pi/4+phi+theta1)+1i*sin(2*pi/4+phi+theta1))))).^2)+exp(-(abs(y5-(sqrt(10)*h*a.*(cos(phi+theta2)+1i*sin(phi+theta2))))).^2)+exp(-(abs(y5-(3*sqrt(2)*h*a.*(cos(1*pi/4+phi)+1i*sin(1*pi/4+phi))))).^2)+exp(-(abs(y5-(sqrt(10)*h*a.*(cos(phi+theta1)+1i*sin(phi+theta1))))).^2));
+        q_1=1/(8*pi)*(exp(-(abs(y5-(sqrt(2)*h*a.*(cos(5*pi/4+phi)+1i*sin(5*pi/4+phi))))).^2)+exp(-(abs(y5-(sqrt(2)*h*a.*(cos(7*pi/4+phi)+1i*sin(7*pi/4+phi))))).^2)+exp(-(abs(y5-(sqrt(10)*h*a.*(cos(4*pi/4+phi+theta2)+1i*sin(4*pi/4+phi+theta2))))).^2)+exp(-(abs(y5-(3*sqrt(2)*h*a.*(cos(5*pi/4+phi)+1i*sin(5*pi/4+phi))))).^2)+exp(-(abs(y5-(sqrt(10)*h*a.*(cos(4*pi/4+phi+theta1)+1i*sin(4*pi/4+phi+theta1))))).^2)+exp(-(abs(y5-(sqrt(10)*h*a.*(cos(phi-theta1)+1i*sin(phi-theta1))))).^2)+exp(-(abs(y5-(3*sqrt(2)*h*a.*(cos(7*pi/4+phi)+1i*sin(7*pi/4+phi))))).^2)+exp(-(abs(y5-(sqrt(10)*h*a.*(cos(phi-theta2)+1i*sin(phi-theta2))))).^2));
+        if q_0 < q_1
+            t = abs(log(q_0/q_1));
+            val = 1/4*(sum(Psi1_values <= t)+sum(Psi2_values <= t)+sum(Psi3_values <= t)+sum(Psi4_values <= t)) / length(Psi1_values);
+            sum31 = sum31 + val;
+        end
+        y6 = Y6(i);
+        q_0=1/(8*pi)*(exp(-(abs(y6-(sqrt(2)*h*a.*(cos(3*pi/4+phi)+1i*sin(3*pi/4+phi))))).^2)+exp(-(abs(y6-(sqrt(2)*h*a.*(cos(1*pi/4+phi)+1i*sin(1*pi/4+phi))))).^2)+exp(-(abs(y6-(sqrt(10)*h*a.*(cos(2*pi/4+phi+theta2)+1i*sin(2*pi/4+phi+theta2))))).^2)+exp(-(abs(y6-(3*sqrt(2)*h*a.*(cos(3*pi/4+phi)+1i*sin(3*pi/4+phi))))).^2)+exp(-(abs(y6-(sqrt(10)*h*a.*(cos(2*pi/4+phi+theta1)+1i*sin(2*pi/4+phi+theta1))))).^2)+exp(-(abs(y6-(sqrt(10)*h*a.*(cos(phi+theta2)+1i*sin(phi+theta2))))).^2)+exp(-(abs(y6-(3*sqrt(2)*h*a.*(cos(1*pi/4+phi)+1i*sin(1*pi/4+phi))))).^2)+exp(-(abs(y6-(sqrt(10)*h*a.*(cos(phi+theta1)+1i*sin(phi+theta1))))).^2));
+        q_1=1/(8*pi)*(exp(-(abs(y6-(sqrt(2)*h*a.*(cos(5*pi/4+phi)+1i*sin(5*pi/4+phi))))).^2)+exp(-(abs(y6-(sqrt(2)*h*a.*(cos(7*pi/4+phi)+1i*sin(7*pi/4+phi))))).^2)+exp(-(abs(y6-(sqrt(10)*h*a.*(cos(4*pi/4+phi+theta2)+1i*sin(4*pi/4+phi+theta2))))).^2)+exp(-(abs(y6-(3*sqrt(2)*h*a.*(cos(5*pi/4+phi)+1i*sin(5*pi/4+phi))))).^2)+exp(-(abs(y6-(sqrt(10)*h*a.*(cos(4*pi/4+phi+theta1)+1i*sin(4*pi/4+phi+theta1))))).^2)+exp(-(abs(y6-(sqrt(10)*h*a.*(cos(phi-theta1)+1i*sin(phi-theta1))))).^2)+exp(-(abs(y6-(3*sqrt(2)*h*a.*(cos(7*pi/4+phi)+1i*sin(7*pi/4+phi))))).^2)+exp(-(abs(y6-(sqrt(10)*h*a.*(cos(phi-theta2)+1i*sin(phi-theta2))))).^2));
+        if q_0 > q_1
+            t = abs(log(q_0/q_1));
+            val = 1/4*(sum(Psi1_values <= t)+sum(Psi2_values <= t)+sum(Psi3_values <= t)+sum(Psi4_values <= t)) / length(Psi1_values);
+            sum32 = sum32 + val;
+        end
+        y7 = Y7(i);
+        q_0=1/(8*pi)*(exp(-(abs(y7-(sqrt(2)*h*a.*(cos(5*pi/4+phi)+1i*sin(5*pi/4+phi))))).^2)+exp(-(abs(y7-(sqrt(2)*h*a.*(cos(3*pi/4+phi)+1i*sin(3*pi/4+phi))))).^2)+exp(-(abs(y7-(sqrt(2)*h*a.*(cos(1*pi/4+phi)+1i*sin(1*pi/4+phi))))).^2)+exp(-(abs(y7-(sqrt(2)*h*a.*(cos(7*pi/4+phi)+1i*sin(7*pi/4+phi))))).^2)+exp(-(abs(y7-(sqrt(10)*h*a.*(cos(4*pi/4+phi+theta1)+1i*sin(4*pi/4+phi+theta1))))).^2)+exp(-(abs(y7-(sqrt(10)*h*a.*(cos(2*pi/4+phi+theta2)+1i*sin(2*pi/4+phi+theta2))))).^2)+exp(-(abs(y7-(sqrt(10)*h*a.*(cos(phi+theta1)+1i*sin(phi+theta1))))).^2)+exp(-(abs(y7-(sqrt(10)*h*a.*(cos(phi-theta1)+1i*sin(phi-theta1))))).^2));
+        q_1=1/(8*pi)*(exp(-(abs(y7-(sqrt(10)*h*a.*(cos(4*pi/4+phi+theta2)+1i*sin(4*pi/4+phi+theta2))))).^2)+exp(-(abs(y7-(3*sqrt(2)*h*a.*(cos(5*pi/4+phi)+1i*sin(5*pi/4+phi))))).^2)+exp(-(abs(y7-(3*sqrt(2)*h*a.*(cos(3*pi/4+phi)+1i*sin(3*pi/4+phi))))).^2)+exp(-(abs(y7-(sqrt(10)*h*a.*(cos(2*pi/4+phi+theta1)+1i*sin(2*pi/4+phi+theta1))))).^2)+exp(-(abs(y7-(sqrt(10)*h*a.*(cos(phi+theta2)+1i*sin(phi+theta2))))).^2)+exp(-(abs(y7-(3*sqrt(2)*h*a.*(cos(1*pi/4+phi)+1i*sin(1*pi/4+phi))))).^2)+exp(-(abs(y7-(3*sqrt(2)*h*a.*(cos(7*pi/4+phi)+1i*sin(7*pi/4+phi))))).^2)+exp(-(abs(y7-(sqrt(10)*h*a.*(cos(phi-theta2)+1i*sin(phi-theta2))))).^2));
+        if q_0 < q_1
+            t = abs(log(q_0/q_1));
+            val = 1/4*(sum(Psi1_values <= t)+sum(Psi2_values <= t)+sum(Psi3_values <= t)+sum(Psi4_values <= t)) / length(Psi1_values);
+            sum41 = sum41 + val;
+        end
+        y8 = Y8(i);
+        q_0=1/(8*pi)*(exp(-(abs(y8-(sqrt(2)*h*a.*(cos(5*pi/4+phi)+1i*sin(5*pi/4+phi))))).^2)+exp(-(abs(y8-(sqrt(2)*h*a.*(cos(3*pi/4+phi)+1i*sin(3*pi/4+phi))))).^2)+exp(-(abs(y8-(sqrt(2)*h*a.*(cos(1*pi/4+phi)+1i*sin(1*pi/4+phi))))).^2)+exp(-(abs(y8-(sqrt(2)*h*a.*(cos(7*pi/4+phi)+1i*sin(7*pi/4+phi))))).^2)+exp(-(abs(y8-(sqrt(10)*h*a.*(cos(4*pi/4+phi+theta1)+1i*sin(4*pi/4+phi+theta1))))).^2)+exp(-(abs(y8-(sqrt(10)*h*a.*(cos(2*pi/4+phi+theta2)+1i*sin(2*pi/4+phi+theta2))))).^2)+exp(-(abs(y8-(sqrt(10)*h*a.*(cos(phi+theta1)+1i*sin(phi+theta1))))).^2)+exp(-(abs(y8-(sqrt(10)*h*a.*(cos(phi-theta1)+1i*sin(phi-theta1))))).^2));
+        q_1=1/(8*pi)*(exp(-(abs(y8-(sqrt(10)*h*a.*(cos(4*pi/4+phi+theta2)+1i*sin(4*pi/4+phi+theta2))))).^2)+exp(-(abs(y8-(3*sqrt(2)*h*a.*(cos(5*pi/4+phi)+1i*sin(5*pi/4+phi))))).^2)+exp(-(abs(y8-(3*sqrt(2)*h*a.*(cos(3*pi/4+phi)+1i*sin(3*pi/4+phi))))).^2)+exp(-(abs(y8-(sqrt(10)*h*a.*(cos(2*pi/4+phi+theta1)+1i*sin(2*pi/4+phi+theta1))))).^2)+exp(-(abs(y8-(sqrt(10)*h*a.*(cos(phi+theta2)+1i*sin(phi+theta2))))).^2)+exp(-(abs(y8-(3*sqrt(2)*h*a.*(cos(1*pi/4+phi)+1i*sin(1*pi/4+phi))))).^2)+exp(-(abs(y8-(3*sqrt(2)*h*a.*(cos(7*pi/4+phi)+1i*sin(7*pi/4+phi))))).^2)+exp(-(abs(y8-(sqrt(10)*h*a.*(cos(phi-theta2)+1i*sin(phi-theta2))))).^2));
+        if q_0 > q_1
+            t = abs(log(q_0/q_1));
+            val = 1/4*(sum(Psi1_values <= t)+sum(Psi2_values <= t)+sum(Psi3_values <= t)+sum(Psi4_values <= t)) / length(Psi1_values);
+            sum42 = sum42 + val;
+        end
+        tot_jifen1 = 1/2 * (sum11/i + sum12/i);
+        tot_jifen2 = 1/2 * (sum21/i + sum22/i);
+        tot_jifen3 = 1/2 * (sum31/i + sum32/i);
+        tot_jifen4 = 1/2 * (sum41/i + sum42/i);
+        tot_jifen = 1/4 * (tot_jifen1 + tot_jifen2 + tot_jifen3 + tot_jifen4);
+        if mod(i, 1e4)==1
+            disp('SNR:');
+            disp(S);
+            disp('Points：');
+            disp(i);
+            disp('tot_jifen');
+            disp(tot_jifen);
+        end
+    end
+    max_re = -inf;
+    best_theta = NaN;
+    for theta = -2500:0.1:-0.1
+        f = @(t) log(1 + exp(1/4*theta*t));
+        re_int = integral(f, 0, 1);
+        re = (4*log(2)-4*re_int+theta*tot_jifen)/log(2);
+        if re > max_re
+            max_re = re;
+            best_theta = theta;
+        end
+    end
+    data(j,1) = S;
+    data(j,2) = max_re;
+    data(j,3) = best_theta;
+end
+file_path = fullfile(pwd, sprintf('data_Rayleigh_16QAM_Gray.mat'));
+save(file_path, 'data');
