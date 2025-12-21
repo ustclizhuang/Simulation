@@ -1,3 +1,4 @@
+# MATLAB Simulation for Paper "ORBGRAND Is Exactly Capacity-achieving via Rank Companding"
 ## Folder Structure
 
 - **BPSK/**  
